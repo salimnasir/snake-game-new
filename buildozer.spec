@@ -1,8 +1,8 @@
 [app]
 
-title = Snake Game
+title = Snake Game New
 
-package.name = snakegame
+package.name = snakegamenew
 
 package.domain = org.test
 
