@@ -10,11 +10,12 @@ from random import randint
 import os
 
 # ================= SETTINGS =================
-CELL_SIZE = 20
 BEST_SCORE_FILE = "best_score.txt"
 
-# Mobile responsive offsets
-GAME_Y_OFFSET = 180
+GRID_WIDTH = 20
+GRID_HEIGHT = 25
+
+CONTROL_HEIGHT = 180
 
 
 # ================= GAME =================
@@ -27,6 +28,15 @@ class SnakeGame(Widget):
 
         self.menu_callback = menu_callback
         self.hard_mode = hard_mode
+
+        # Dynamic sizes
+        self.game_width = Window.width
+        self.game_height = Window.height - CONTROL_HEIGHT
+
+        self.cell_size = min(
+            self.game_width / GRID_WIDTH,
+            self.game_height / GRID_HEIGHT
+        )
 
         # Snake
         self.snake = [(5, 5)]
@@ -44,10 +54,6 @@ class SnakeGame(Widget):
         self.score = 0
         self.best_score = self.load_best_score()
 
-        # Responsive grid
-        self.cols = 20
-        self.rows = 25
-
         # ================= SCORE LABELS =================
         self.score_label = Label(
             text="Score: 0",
@@ -56,7 +62,7 @@ class SnakeGame(Widget):
             color=(1, 1, 1, 1),
             size_hint=(None, None),
             size=(150, 50),
-            pos=(20, Window.height - 80)
+            pos=(20, Window.height - 50)
         )
 
         self.best_label = Label(
@@ -66,13 +72,13 @@ class SnakeGame(Widget):
             color=(1, 1, 1, 1),
             size_hint=(None, None),
             size=(150, 50),
-            pos=(Window.width - 170, Window.height - 80)
+            pos=(Window.width - 170, Window.height - 50)
         )
 
         self.add_widget(self.score_label)
         self.add_widget(self.best_label)
 
-        # Start game
+        # Game loop
         self.event = Clock.schedule_interval(self.update, speed)
 
         self.redraw()
@@ -105,40 +111,42 @@ class SnakeGame(Widget):
             Color(0, 0, 0)
 
             Rectangle(
-                pos=(0, 0),
-                size=(Window.width, Window.height)
+                pos=(0, CONTROL_HEIGHT),
+                size=(Window.width, self.game_height)
             )
 
             # ================= SNAKE =================
             for i, (x, y) in enumerate(self.snake):
 
-                draw_x = x * CELL_SIZE
-                draw_y = y * CELL_SIZE + GAME_Y_OFFSET
+                draw_x = x * self.cell_size
+                draw_y = y * self.cell_size + CONTROL_HEIGHT
 
-                # ===== HEAD =====
+                # HEAD
                 if i == 0:
 
                     Color(0, 0.8, 0)
 
                     Rectangle(
                         pos=(draw_x, draw_y),
-                        size=(CELL_SIZE, CELL_SIZE)
+                        size=(self.cell_size, self.cell_size)
                     )
 
                     # Eyes
                     Color(1, 1, 1)
 
                     Rectangle(
-                        pos=(draw_x + 4, draw_y + 12),
+                        pos=(draw_x + self.cell_size * 0.2,
+                             draw_y + self.cell_size * 0.7),
                         size=(3, 3)
                     )
 
                     Rectangle(
-                        pos=(draw_x + 13, draw_y + 12),
+                        pos=(draw_x + self.cell_size * 0.7,
+                             draw_y + self.cell_size * 0.7),
                         size=(3, 3)
                     )
 
-                # ===== BODY =====
+                # BODY
                 else:
 
                     if i % 2 == 0:
@@ -148,18 +156,19 @@ class SnakeGame(Widget):
 
                     Rectangle(
                         pos=(draw_x + 1, draw_y + 1),
-                        size=(CELL_SIZE - 2, CELL_SIZE - 2)
+                        size=(self.cell_size - 2,
+                              self.cell_size - 2)
                     )
 
-            # ================= FOOD =================
+            # ================= NORMAL FOOD =================
             Color(1, 0, 0)
 
             Rectangle(
                 pos=(
-                    self.food[0] * CELL_SIZE,
-                    self.food[1] * CELL_SIZE + GAME_Y_OFFSET
+                    self.food[0] * self.cell_size,
+                    self.food[1] * self.cell_size + CONTROL_HEIGHT
                 ),
-                size=(CELL_SIZE, CELL_SIZE)
+                size=(self.cell_size, self.cell_size)
             )
 
             # ================= BONUS FOOD =================
@@ -169,10 +178,10 @@ class SnakeGame(Widget):
 
                 Rectangle(
                     pos=(
-                        self.bonus_food[0] * CELL_SIZE,
-                        self.bonus_food[1] * CELL_SIZE + GAME_Y_OFFSET
+                        self.bonus_food[0] * self.cell_size,
+                        self.bonus_food[1] * self.cell_size + CONTROL_HEIGHT
                     ),
-                    size=(CELL_SIZE, CELL_SIZE)
+                    size=(self.cell_size, self.cell_size)
                 )
 
     # ================= GAME LOOP =================
@@ -187,27 +196,27 @@ class SnakeGame(Widget):
         if self.hard_mode:
 
             if (
-                new_head[0] < 0 or
-                new_head[0] > self.cols - 1 or
-                new_head[1] < 0 or
-                new_head[1] > self.rows - 1
+                new_head[0] < 0
+                or new_head[0] >= GRID_WIDTH
+                or new_head[1] < 0
+                or new_head[1] >= GRID_HEIGHT
             ):
                 self.game_over()
                 return
 
-        # ================= EASY/MEDIUM =================
+        # ================= EASY/MEDIUM WRAP =================
         else:
 
             if new_head[0] < 0:
-                new_head = (self.cols - 1, new_head[1])
+                new_head = (GRID_WIDTH - 1, new_head[1])
 
-            elif new_head[0] > self.cols - 1:
+            elif new_head[0] >= GRID_WIDTH:
                 new_head = (0, new_head[1])
 
             if new_head[1] < 0:
-                new_head = (new_head[0], self.rows - 1)
+                new_head = (new_head[0], GRID_HEIGHT - 1)
 
-            elif new_head[1] > self.rows - 1:
+            elif new_head[1] >= GRID_HEIGHT:
                 new_head = (new_head[0], 0)
 
         # ================= SELF COLLISION =================
@@ -233,28 +242,26 @@ class SnakeGame(Widget):
 
             # New food
             self.food = (
-                randint(0, self.cols - 1),
-                randint(0, self.rows - 1)
+                randint(0, GRID_WIDTH - 1),
+                randint(0, GRID_HEIGHT - 1)
             )
 
             # ================= BONUS EVERY 5 =================
             if (
-                self.score % 5 == 0 and
-                self.score != 0 and
-                not self.bonus_visible
+                self.score % 5 == 0
+                and self.score != 0
+                and not self.bonus_visible
             ):
 
                 self.bonus_food = (
-                    randint(0, self.cols - 1),
-                    randint(0, self.rows - 1)
+                    randint(0, GRID_WIDTH - 1),
+                    randint(0, GRID_HEIGHT - 1)
                 )
 
                 self.bonus_visible = True
-
-                # 5-10 sec
                 self.bonus_timer = randint(5, 10)
 
-        # ================= BONUS EATEN =================
+        # ================= BONUS FOOD =================
         elif self.bonus_visible and new_head == self.bonus_food:
 
             self.score += 5
@@ -307,15 +314,17 @@ class SnakeGame(Widget):
 
         self.add_widget(Label(
             text="GAME OVER",
-            font_size='30sp',
-            center=(Window.width / 2, Window.height / 2)
+            font_size='40sp',
+            center=(Window.width / 2,
+                    Window.height / 2)
         ))
 
         btn = Button(
             text="Back To Menu",
             size_hint=(None, None),
             size=(220, 60),
-            pos=(Window.width / 2 - 110, Window.height / 2 - 80)
+            pos=(Window.width / 2 - 110,
+                 Window.height / 2 - 80)
         )
 
         btn.bind(on_press=lambda x: self.menu_callback())
@@ -331,34 +340,26 @@ class MenuScreen(BoxLayout):
         super().__init__(**kwargs)
 
         self.orientation = "vertical"
-        self.spacing = 25
-        self.padding = [40, 150, 40, 150]
+        self.spacing = 20
+        self.padding = 40
 
         self.add_widget(Label(
             text="SNAKE GAME",
-            font_size='32sp',
-            bold=True,
-            size_hint=(1, 0.3)
+            font_size='40sp'
         ))
 
-        easy = Button(
-            text="Easy",
-            font_size='24sp'
-        )
+        easy = Button(text="Easy", font_size='28sp')
+        medium = Button(text="Medium", font_size='28sp')
+        hard = Button(text="Hard", font_size='28sp')
 
-        medium = Button(
-            text="Medium",
-            font_size='24sp'
-        )
+        easy.bind(on_press=lambda x:
+                  start_game_callback(0.20, False))
 
-        hard = Button(
-            text="Hard",
-            font_size='24sp'
-        )
+        medium.bind(on_press=lambda x:
+                    start_game_callback(0.12, False))
 
-        easy.bind(on_press=lambda x: start_game_callback(0.20, False))
-        medium.bind(on_press=lambda x: start_game_callback(0.12, False))
-        hard.bind(on_press=lambda x: start_game_callback(0.07, True))
+        hard.bind(on_press=lambda x:
+                  start_game_callback(0.07, True))
 
         self.add_widget(easy)
         self.add_widget(medium)
@@ -392,6 +393,10 @@ class SnakeApp(App):
 
         self.root_layout.clear_widgets()
 
+        container = BoxLayout(
+            orientation="vertical"
+        )
+
         game = SnakeGame(
             speed=speed,
             hard_mode=hard_mode,
@@ -401,39 +406,20 @@ class SnakeApp(App):
         # ================= CONTROL PAD =================
         controls = BoxLayout(
             size_hint=(1, None),
-            height=220,
+            height=CONTROL_HEIGHT,
             orientation="vertical",
-            padding=15,
-            spacing=10
+            padding=10,
+            spacing=5
         )
 
-        row1 = BoxLayout(spacing=10)
-        row2 = BoxLayout(spacing=10)
-        row3 = BoxLayout(spacing=10)
+        row1 = BoxLayout()
+        row2 = BoxLayout()
+        row3 = BoxLayout()
 
-        up = Button(
-            text="⬆",
-            font_size='28sp',
-            size_hint=(0.3, 1)
-        )
-
-        down = Button(
-            text="⬇",
-            font_size='28sp',
-            size_hint=(0.3, 1)
-        )
-
-        left = Button(
-            text="⬅",
-            font_size='28sp',
-            size_hint=(0.3, 1)
-        )
-
-        right = Button(
-            text="➡",
-            font_size='28sp',
-            size_hint=(0.3, 1)
-        )
+        up = Button(text="⬆", font_size='30sp')
+        down = Button(text="⬇", font_size='30sp')
+        left = Button(text="⬅", font_size='30sp')
+        right = Button(text="➡", font_size='30sp')
 
         up.bind(on_press=game.move_up)
         down.bind(on_press=game.move_down)
@@ -455,11 +441,6 @@ class SnakeApp(App):
         controls.add_widget(row1)
         controls.add_widget(row2)
         controls.add_widget(row3)
-
-        # ================= MAIN CONTAINER =================
-        container = BoxLayout(
-            orientation="vertical"
-        )
 
         container.add_widget(game)
         container.add_widget(controls)
